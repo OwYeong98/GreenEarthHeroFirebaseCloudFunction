@@ -186,3 +186,89 @@ exports.sendNotificationWhenRecycleRequestCollectionIsDone = functions.firestore
         
         return getUser
 });
+
+exports.sendNotificationWhenNewChatMessagesIsFound = functions.firestore
+    .document('Chat_Room/{chatRoomId}/MessagesList/{messageId}')
+    .onCreate((snap, context) => {
+        // When there are new message
+        const newMessageDoc = snap.data()
+        
+        
+        var senderId = newMessageDoc.userSend
+        var message = newMessageDoc.message
+
+        // Update the lastest message
+        var updateLastestMessageOfTheRoom = admin.firestore().collection("Chat_Room").doc(context.params.chatRoomId).update({
+            "lastMessage": message,
+            "lastMessageSendBy": senderId
+             })
+            .then(function() {
+            
+
+                //get Chat Room to find another person in the chat room and send him notification
+                var getChatRoom = admin.firestore().collection("Chat_Room").doc(context.params.chatRoomId).get().then(
+                    chatRoomdocumentSnapshot=>{
+                        if(chatRoomdocumentSnapshot.exists){
+                            var user1 = chatRoomdocumentSnapshot.data().chatUsers[0]
+                            var user2 = chatRoomdocumentSnapshot.data().chatUsers[1]
+                            
+
+                            var userIdOfUserThatNeedToBeNotify = ""
+                            if(senderId === user1){
+                                userIdOfUserThatNeedToBeNotify = user2
+                            }else{
+                                userIdOfUserThatNeedToBeNotify = user1
+                            }
+
+                            //get the token of user that need to be notify
+                            var getSenderUserDetail = admin.firestore().collection("Users").doc(userIdOfUserThatNeedToBeNotify).get().then(
+                                senderUserdocumentSnapshot=>{
+                                    var getAcceptingUser = admin.firestore().collection("Users").doc(userIdOfUserThatNeedToBeNotify).get().then(
+                                        acceptingUserdocumentSnapshot=>{
+                
+                                            if(acceptingUserdocumentSnapshot.exists && senderUserdocumentSnapshot.exists){
+                                                var senderName = senderUserdocumentSnapshot.data().lastName + " "+ senderUserdocumentSnapshot.data().firstName
+                                                var messagingToken = acceptingUserdocumentSnapshot.data().cloudMessagingId
+                                                
+                
+                                                if(messagingToken !== ""){
+                                                    // Notification details.
+                                                    const payload = {
+                                                        notification: {
+                                                        title: senderName+' just sent you a message!',
+                                                        body: message
+                                                        }
+                                                    };
+                
+                
+                                                    admin.messaging().sendToDevice(messagingToken,payload)
+                
+                                                    return null
+                                                }else{
+                                                    return null
+                                                }
+                                            }else{
+                                                return null
+                                            }
+                
+                                        });
+                                    
+                                    return getAcceptingUser
+
+
+                                });
+                            
+                            return getSenderUserDetail
+                        }else{
+                            return null
+                        }
+                    }
+                ).catch(err=>{
+                    console.log("Error getting Doc",err)
+                    return null
+                })
+                
+                return getChatRoom
+            });
+        return updateLastestMessageOfTheRoom
+});
