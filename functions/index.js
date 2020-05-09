@@ -1,4 +1,5 @@
 const functions = require('firebase-functions');
+const stripe = require('stripe')('pk_test_VLgTWVFCVB1AzsOkSTeeRa5P00Z5r56N8D');
 
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -271,4 +272,22 @@ exports.sendNotificationWhenNewChatMessagesIsFound = functions.firestore
                 return getChatRoom
             });
         return updateLastestMessageOfTheRoom
+});
+
+exports.getStripePaymentIntent = functions.https.onCall((data, context) => {
+    
+    const paymentIntent = stripe.paymentIntents.create({
+        amount: 10,
+        currency: 'usd',
+        payment_method_types: ['card'],
+        metadata: { uid: 'some_userID' }
+    });
+    
+    var clientSecret = paymentIntent.getClientSecret();
+
+
+    return {
+        secretKey: clientSecret
+      };
+      
 });
