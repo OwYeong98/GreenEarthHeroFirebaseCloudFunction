@@ -274,20 +274,199 @@ exports.sendNotificationWhenNewChatMessagesIsFound = functions.firestore
         return updateLastestMessageOfTheRoom
 });
 
-exports.getStripePaymentIntent = functions.https.onCall((data, context) => {
-    
-    const paymentIntent = stripe.paymentIntents.create({
-        amount: 10,
-        currency: 'usd',
-        payment_method_types: ['card'],
-        metadata: { uid: 'some_userID' }
-    });
-    
-    var clientSecret = paymentIntent.getClientSecret();
+exports.sendNotificationWhenItemIsBoughtBySomeone = functions.firestore
+    .document('Second_Hand_Item/{itemId}')
+    .onUpdate((change,context) => {
+
+        var sellerUserId = change.after.data().postedBy
+        var itemName = change.after.data().itemName
+        
+        //when someone accepted to collect the recycle request
+        if(change.before.data().boughtBy === "" && change.after.data().boughtBy !== ""){
+            var boughtByUserId = change.after.data().boughtBy
+            //get user detail
+            var getUser = admin.firestore().collection("Users").doc(boughtByUserId).get().then(
+                boughtByUserdocumentSnapshot=>{
+                    if(boughtByUserdocumentSnapshot.exists){
+
+                        //get accepting user detail
+                        var getSellerUser = admin.firestore().collection("Users").doc(sellerUserId).get().then(
+                            sellerUserdocumentSnapshot=>{
+
+                                if(sellerUserdocumentSnapshot.exists){
+                                    var messagingToken = sellerUserdocumentSnapshot.data().cloudMessagingId
+                                    var buyerUserName = boughtByUserdocumentSnapshot.data().lastName + " "+ boughtByUserdocumentSnapshot.data().firstName
+
+                                    if(messagingToken !== ""){
+                                        // Notification details.
+                                        const payload = {
+                                            notification: {
+                                            title: `Your Item ${itemName} is sold!`,
+                                            body: `Your Item ${itemName} have been bought by ${buyerUserName}`
+                                            }
+                                        };
 
 
-    return {
-        secretKey: clientSecret
-      };
-      
-});
+                                        admin.messaging().sendToDevice(messagingToken,payload)
+
+                                        return null
+                                    }else{
+                                        return null
+                                    }
+                                }else{
+                                    return null
+                                }
+
+                            });
+                        
+                        return getSellerUser
+                        
+                    }else{
+                        return null
+                    }
+                }
+            ).catch(err=>{
+                console.log("Error getting Doc",err)
+                return null
+            })
+
+            return getUser
+        }else if(change.before.data().accepted_collect_by !== "" && change.after.data().accepted_collect_by === ""){
+            //when someone cancel volunteer for the recycle request
+
+            var acceptorUserId2 = change.before.data().accepted_collect_by
+
+            //get user detail
+            var getUser2 = admin.firestore().collection("Users").doc(requesterUserId).get().then(
+                requestUserdocumentSnapshot=>{
+                    if(requestUserdocumentSnapshot.exists){
+
+                        //get accepting user detail
+                        var getAcceptingUser = admin.firestore().collection("Users").doc(acceptorUserId2).get().then(
+                            acceptingUserdocumentSnapshot=>{
+
+                                if(acceptingUserdocumentSnapshot.exists){
+                                    var messagingToken = requestUserdocumentSnapshot.data().cloudMessagingId
+                                    var acceptingUserName = acceptingUserdocumentSnapshot.data().lastName + " "+ acceptingUserdocumentSnapshot.data().firstName
+                                    var address = change.after.data().address
+
+                                    if(messagingToken !== ""){
+                                        // Notification details.
+                                        const payload = {
+                                            notification: {
+                                            title: acceptingUserName+' has cancelled volunteer to collect your recycle request',
+                                            body: 'Your Recycle Request at '+address+' will now be made available for community to volunteer for collection!'
+                                            }
+                                        };
+
+                                        admin.messaging().sendToDevice(messagingToken,payload)
+
+                                        return null
+                                    }else{
+                                        return null
+                                    }
+                                }else{
+                                    return null
+                                }
+
+                            });
+                        
+                        return getAcceptingUser
+                        
+                    }else{
+                        return null
+                    }
+                }
+            ).catch(err=>{
+                console.log("Error getting Doc",err)
+                return null
+            })
+            
+        }else{
+            return null
+        }
+})
+
+exports.sendNotificationWhenDeliveryDetailIsUpdated = functions.firestore
+    .document('Second_Hand_Item/{itemId}')
+    .onUpdate((change,context) => {
+
+        var buyerUserId = change.after.data().postedBy
+        var itemName = change.after.data().itemName
+        var title = ""
+        var body = ""
+        
+        if(change.before.data().trackingNo !== change.after.data().trackingNo){
+            //when someone accepted to collect the recycle request
+            if(change.before.data().trackingNo === "" && change.after.data().trackingNo !== ""){
+                title = "Delivery detail for your purchase is added!";
+                body = "The Seller had added delivery detail for the item "+ itemName
+            }else if(change.before.data().trackingNo !== "" && change.after.data().trackingNo !== ""){
+                title = "Delivery detail for your purchase is updated!";
+                body = "The Seller had updated delivery detail for the item "+ itemName
+            }
+
+            var getBuyerUser = admin.firestore().collection("Users").doc(buyerUserId).get().then(
+                buyerUserdocumentSnapshot=>{
+    
+                    if(buyerUserdocumentSnapshot.exists){
+                        var messagingToken = buyerUserdocumentSnapshot.data().cloudMessagingId
+                       
+                        if(messagingToken !== ""){
+                            // Notification details.
+                            const payload = {
+                                notification: {
+                                title: title,
+                                body: body
+                                }
+                            };
+    
+                            admin.messaging().sendToDevice(messagingToken,payload)
+    
+                            return null
+                        }else{
+                            return null
+                        }
+                    }else{
+                        return null
+                    }
+    
+                });
+            
+            return getBuyerUser
+        }
+})
+
+exports.updateTotalFoodAmountWhenQuantityChange = functions.firestore
+    .document('Food_Donation/{foodDonationId}/Food_List/{foodId}')
+    .onUpdate((change,context) => {
+
+        var foodDonationId = context.params.foodDonationId
+        console.log("food Donation ID: "+foodDonationId)
+        var calculateTotalFood = admin.firestore().collection(`Food_Donation/${foodDonationId}/Food_List`).get().then(
+            foodList=>{
+                var totalFood = 0
+                foodList.forEach((food)=>{
+                    var claimedFoodQty = food.data().claimedFoodQuantity
+                    var foodQuantity = food.data().foodQuantity
+
+                    var foodLeft = foodQuantity - claimedFoodQty
+                    totalFood = totalFood+foodLeft
+                })
+
+                var updateFoodAmount = admin.firestore().collection('Food_Donation').doc(foodDonationId).update({totalFoodAmount:totalFood}).then(()=>{
+                    return true
+                }).catch((error)=>{
+                    console.log('Error updating the document:', error);
+                    return false
+                })
+
+                return updateFoodAmount
+            }
+        ).catch((error)=>{
+            console.log('Error updating the document:', error);
+            return 0
+        })
+
+        return calculateTotalFood
+})
