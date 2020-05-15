@@ -1,5 +1,6 @@
 const functions = require('firebase-functions');
 const stripe = require('stripe')('pk_test_VLgTWVFCVB1AzsOkSTeeRa5P00Z5r56N8D');
+const moment = require('moment-timezone');
 
 const admin = require('firebase-admin');
 admin.initializeApp();
@@ -37,23 +38,39 @@ exports.sendRecycleRequestAcceptedOrCancelledNotification = functions.firestore
                                     var acceptingUserName = acceptingUserdocumentSnapshot.data().lastName + " "+ acceptingUserdocumentSnapshot.data().firstName
                                     var address = change.after.data().address
 
-                                    if(messagingToken !== ""){
-                                        // Notification details.
-                                        const payload = {
-                                            notification: {
-                                            title: acceptingUserName+' has accepted your recycle request',
-                                            body: acceptingUserName+' will be your collector for your request at '+address
-                                            }
-                                        };
-
-                                        admin.messaging().sendToDevice(messagingToken,payload)
-
-                                        return null
-                                    }else{
-                                        return null
+                                    var newNotificationDoc = {
+                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                        userId: requesterUserId,
+                                        title: acceptingUserName+' has accepted your recycle request',
+                                        relatedID: recycleRequestId,
+                                        type: "Recycle_Request",
+                                        isRead: false
                                     }
+    
+                                    var addNotificationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                                        
+                                        if(messagingToken !== ""){
+                                            const payload = {
+                                                notification: {
+                                                title: acceptingUserName+' has accepted your recycle request',
+                                                body: acceptingUserName+' will be your collector for your request at '+address
+                                                }
+                                            };
+    
+                                            admin.messaging().sendToDevice(messagingToken,payload)
+        
+                                            return true
+                                        }else{
+                                            return false
+                                        }
+                                    }).catch((error)=>{
+                                        console.log('Error updating the document:', error);
+                                        return false
+                                    })
+
+                                    return addNotificationToDatabase
                                 }else{
-                                    return null
+                                    return false
                                 }
 
                             });
@@ -61,12 +78,12 @@ exports.sendRecycleRequestAcceptedOrCancelledNotification = functions.firestore
                         return getAcceptingUser
                         
                     }else{
-                        return null
+                        return false
                     }
                 }
             ).catch(err=>{
                 console.log("Error getting Doc",err)
-                return null
+                return false
             })
 
             return getUser
@@ -89,23 +106,40 @@ exports.sendRecycleRequestAcceptedOrCancelledNotification = functions.firestore
                                     var acceptingUserName = acceptingUserdocumentSnapshot.data().lastName + " "+ acceptingUserdocumentSnapshot.data().firstName
                                     var address = change.after.data().address
 
-                                    if(messagingToken !== ""){
-                                        // Notification details.
-                                        const payload = {
-                                            notification: {
-                                            title: acceptingUserName+' has cancelled volunteer to collect your recycle request',
-                                            body: 'Your Recycle Request at '+address+' will now be made available for community to volunteer for collection!'
-                                            }
-                                        };
-
-                                        admin.messaging().sendToDevice(messagingToken,payload)
-
-                                        return null
-                                    }else{
-                                        return null
+                                    var newNotificationDoc = {
+                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                        userId: requesterUserId,
+                                        title: acceptingUserName+' has cancelled volunteer to collect your recycle request',
+                                        relatedID: recycleRequestId,
+                                        type: "Recycle_Request",
+                                        isRead: false
                                     }
+    
+                                    var addNotificationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                                        
+                                        if(messagingToken !== ""){
+                                            const payload = {
+                                                notification: {
+                                                title: acceptingUserName+' has cancelled volunteer to collect your recycle request',
+                                                body: 'Your Recycle Request at '+address+' will now be made available for community to volunteer for collection!'
+                                                }
+                                            };
+        
+        
+                                            admin.messaging().sendToDevice(messagingToken,payload)
+        
+                                            return true
+                                        }else{
+                                            return false
+                                        }
+                                    }).catch((error)=>{
+                                        console.log('Error updating the document:', error);
+                                        return false
+                                    })
+
+                                    return addNotificationToDatabase
                                 }else{
-                                    return null
+                                    return false
                                 }
 
                             });
@@ -113,16 +147,17 @@ exports.sendRecycleRequestAcceptedOrCancelledNotification = functions.firestore
                         return getAcceptingUser
                         
                     }else{
-                        return null
+                        return false
                     }
                 }
             ).catch(err=>{
                 console.log("Error getting Doc",err)
-                return null
+                return false
             })
-            
+
+            return getUser2
         }else{
-            return null
+            return false
         }
 })
 
@@ -151,25 +186,41 @@ exports.sendNotificationWhenRecycleRequestCollectionIsDone = functions.firestore
                                 var acceptingUserName = acceptingUserdocumentSnapshot.data().lastName + " "+ acceptingUserdocumentSnapshot.data().firstName
                                 var address = newDoc.address
 
-                                if(messagingToken !== ""){
-                                    // Notification details.
-                                    const payload = {
-                                        notification: {
-                                        title: acceptingUserName+' has completed collecting your recycle request',
-                                        body: 'Your Recycle Request at '+address+' is collected successfully!'
-                                        }
-                                    };
-
-                                    console.log("send token: "+messagingToken)
-
-                                    admin.messaging().sendToDevice(messagingToken,payload)
-
-                                    return null
-                                }else{
-                                    return null
+                                var newNotificationDoc = {
+                                    date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                    userId: requesterUserId,
+                                    title: acceptingUserName+' has completed collecting your recycle request',
+                                    relatedID: context.params.id,
+                                    type: "Recycle_Request_History",
+                                    isRead: false
                                 }
+
+                                var addNotificationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                                    
+                                    if(messagingToken !== ""){
+                                        const payload = {
+                                            notification: {
+                                            title: acceptingUserName+' has completed collecting your recycle request',
+                                            body: 'Your Recycle Request at '+address+' is collected successfully!'
+                                            }
+                                        };
+    
+                                        console.log("send token: "+messagingToken)
+    
+                                        admin.messaging().sendToDevice(messagingToken,payload)
+    
+                                        return true
+                                    }else{
+                                        return false
+                                    }
+                                }).catch((error)=>{
+                                    console.log('Error updating the document:', error);
+                                    return false
+                                })
+
+                                return addNotificationToDatabase
                             }else{
-                                return null
+                                return false
                             }
 
                         });
@@ -177,7 +228,7 @@ exports.sendNotificationWhenRecycleRequestCollectionIsDone = functions.firestore
                     return getAcceptingUser
                     
                 }else{
-                    return null
+                    return false
                 }
             }
         ).catch(err=>{
@@ -222,46 +273,64 @@ exports.sendNotificationWhenNewChatMessagesIsFound = functions.firestore
                             }
 
                             //get the token of user that need to be notify
-                            var getSenderUserDetail = admin.firestore().collection("Users").doc(userIdOfUserThatNeedToBeNotify).get().then(
+                            var getSenderUserDetail = admin.firestore().collection("Users").doc(senderId).get().then(
                                 senderUserdocumentSnapshot=>{
-                                    var getAcceptingUser = admin.firestore().collection("Users").doc(userIdOfUserThatNeedToBeNotify).get().then(
-                                        acceptingUserdocumentSnapshot=>{
+                                    var getReceiverUser = admin.firestore().collection("Users").doc(userIdOfUserThatNeedToBeNotify).get().then(
+                                        receiverUserdocumentSnapshot=>{
                 
-                                            if(acceptingUserdocumentSnapshot.exists && senderUserdocumentSnapshot.exists){
+                                            if(receiverUserdocumentSnapshot.exists && senderUserdocumentSnapshot.exists){
                                                 var senderName = senderUserdocumentSnapshot.data().lastName + " "+ senderUserdocumentSnapshot.data().firstName
-                                                var messagingToken = acceptingUserdocumentSnapshot.data().cloudMessagingId
-                                                
-                
-                                                if(messagingToken !== ""){
-                                                    // Notification details.
-                                                    const payload = {
-                                                        notification: {
-                                                        title: senderName+' just sent you a message!',
-                                                        body: message
-                                                        }
-                                                    };
-                
-                
-                                                    admin.messaging().sendToDevice(messagingToken,payload)
-                
-                                                    return null
-                                                }else{
-                                                    return null
+                                                var messagingToken = receiverUserdocumentSnapshot.data().cloudMessagingId
+
+                                                var newNotificationDoc = {
+                                                    date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                                    userId: userIdOfUserThatNeedToBeNotify,
+                                                    title: senderName+' just sent you a message!',
+                                                    relatedID: context.params.chatRoomId,
+                                                    type: "Chat_Room",
+                                                    isRead: false
                                                 }
+            
+                                                var addNotificationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                                                    
+                                                    if(messagingToken !== ""){
+                                                        // Notification details.
+                                                        const payload = {
+                                                            notification: {
+                                                            title: senderName+' just sent you a message!',
+                                                            body: message
+                                                            }
+                                                        };
+                    
+                    
+                                                        admin.messaging().sendToDevice(messagingToken,payload)
+                    
+                                                        return true
+                                                    }else{
+                                                        return false
+                                                    }
+                                                }).catch((error)=>{
+                                                    console.log('Error updating the document:', error);
+                                                    return false
+                                                })
+
+                                                return addNotificationToDatabase
+                                                
+                                                
                                             }else{
-                                                return null
+                                                return false
                                             }
                 
                                         });
                                     
-                                    return getAcceptingUser
+                                    return getReceiverUser
 
 
                                 });
                             
                             return getSenderUserDetail
                         }else{
-                            return null
+                            return false
                         }
                     }
                 ).catch(err=>{
@@ -280,6 +349,7 @@ exports.sendNotificationWhenItemIsBoughtBySomeone = functions.firestore
 
         var sellerUserId = change.after.data().postedBy
         var itemName = change.after.data().itemName
+        var itemId = context.params.itemId
         
         //when someone accepted to collect the recycle request
         if(change.before.data().boughtBy === "" && change.after.data().boughtBy !== ""){
@@ -288,31 +358,50 @@ exports.sendNotificationWhenItemIsBoughtBySomeone = functions.firestore
             var getUser = admin.firestore().collection("Users").doc(boughtByUserId).get().then(
                 boughtByUserdocumentSnapshot=>{
                     if(boughtByUserdocumentSnapshot.exists){
+                        var buyerUserName = boughtByUserdocumentSnapshot.data().lastName + " "+ boughtByUserdocumentSnapshot.data().firstName
 
                         //get accepting user detail
                         var getSellerUser = admin.firestore().collection("Users").doc(sellerUserId).get().then(
                             sellerUserdocumentSnapshot=>{
 
                                 if(sellerUserdocumentSnapshot.exists){
-                                    var messagingToken = sellerUserdocumentSnapshot.data().cloudMessagingId
-                                    var buyerUserName = boughtByUserdocumentSnapshot.data().lastName + " "+ boughtByUserdocumentSnapshot.data().firstName
-
-                                    if(messagingToken !== ""){
-                                        // Notification details.
-                                        const payload = {
-                                            notification: {
-                                            title: `Your Item ${itemName} is sold!`,
-                                            body: `Your Item ${itemName} have been bought by ${buyerUserName}`
-                                            }
-                                        };
-
-
-                                        admin.messaging().sendToDevice(messagingToken,payload)
-
-                                        return null
-                                    }else{
-                                        return null
+                                    var newNotificationDoc = {
+                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                        userId: sellerUserId,
+                                        title: `Your Item ${itemName} have been bought by ${buyerUserName}`,
+                                        relatedID: itemId,
+                                        type: "Item_Sale",
+                                        isRead: false
                                     }
+
+                                    var addNotificationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                            
+                                        var messagingToken = sellerUserdocumentSnapshot.data().cloudMessagingId
+                                        
+                                        if(messagingToken !== ""){
+                                            // Notification details.
+                                            const payload = {
+                                                notification: {
+                                                title: `Your Item ${itemName} is sold!`,
+                                                body: `Your Item ${itemName} have been bought by ${buyerUserName}`
+                                                }
+                                            };
+
+
+                                            admin.messaging().sendToDevice(messagingToken,payload)
+
+                                            return true
+                                        }else{
+                                            return false
+                                        }
+                                    }).catch((error)=>{
+                                        console.log('Error updating the document:', error);
+                                        return false
+                                    })
+            
+                                    return addNotificationToDatabase
+
+                                    
                                 }else{
                                     return null
                                 }
@@ -322,68 +411,17 @@ exports.sendNotificationWhenItemIsBoughtBySomeone = functions.firestore
                         return getSellerUser
                         
                     }else{
-                        return null
+                        return false
                     }
                 }
             ).catch(err=>{
                 console.log("Error getting Doc",err)
-                return null
+                return false
             })
 
-            return getUser
-        }else if(change.before.data().accepted_collect_by !== "" && change.after.data().accepted_collect_by === ""){
-            //when someone cancel volunteer for the recycle request
-
-            var acceptorUserId2 = change.before.data().accepted_collect_by
-
-            //get user detail
-            var getUser2 = admin.firestore().collection("Users").doc(requesterUserId).get().then(
-                requestUserdocumentSnapshot=>{
-                    if(requestUserdocumentSnapshot.exists){
-
-                        //get accepting user detail
-                        var getAcceptingUser = admin.firestore().collection("Users").doc(acceptorUserId2).get().then(
-                            acceptingUserdocumentSnapshot=>{
-
-                                if(acceptingUserdocumentSnapshot.exists){
-                                    var messagingToken = requestUserdocumentSnapshot.data().cloudMessagingId
-                                    var acceptingUserName = acceptingUserdocumentSnapshot.data().lastName + " "+ acceptingUserdocumentSnapshot.data().firstName
-                                    var address = change.after.data().address
-
-                                    if(messagingToken !== ""){
-                                        // Notification details.
-                                        const payload = {
-                                            notification: {
-                                            title: acceptingUserName+' has cancelled volunteer to collect your recycle request',
-                                            body: 'Your Recycle Request at '+address+' will now be made available for community to volunteer for collection!'
-                                            }
-                                        };
-
-                                        admin.messaging().sendToDevice(messagingToken,payload)
-
-                                        return null
-                                    }else{
-                                        return null
-                                    }
-                                }else{
-                                    return null
-                                }
-
-                            });
-                        
-                        return getAcceptingUser
-                        
-                    }else{
-                        return null
-                    }
-                }
-            ).catch(err=>{
-                console.log("Error getting Doc",err)
-                return null
-            })
-            
+            return getUser       
         }else{
-            return null
+            return false
         }
 })
 
@@ -391,7 +429,8 @@ exports.sendNotificationWhenDeliveryDetailIsUpdated = functions.firestore
     .document('Second_Hand_Item/{itemId}')
     .onUpdate((change,context) => {
 
-        var buyerUserId = change.after.data().postedBy
+        var itemId = context.params.itemId
+        var buyerUserId = change.after.data().boughtBy
         var itemName = change.after.data().itemName
         var title = ""
         var body = ""
@@ -408,32 +447,49 @@ exports.sendNotificationWhenDeliveryDetailIsUpdated = functions.firestore
 
             var getBuyerUser = admin.firestore().collection("Users").doc(buyerUserId).get().then(
                 buyerUserdocumentSnapshot=>{
-    
                     if(buyerUserdocumentSnapshot.exists){
-                        var messagingToken = buyerUserdocumentSnapshot.data().cloudMessagingId
-                       
-                        if(messagingToken !== ""){
-                            // Notification details.
-                            const payload = {
-                                notification: {
-                                title: title,
-                                body: body
-                                }
-                            };
-    
-                            admin.messaging().sendToDevice(messagingToken,payload)
-    
-                            return null
-                        }else{
-                            return null
+                        var newNotificationDoc = {
+                            date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                            userId: buyerUserId,
+                            title: title,
+                            relatedID: itemId,
+                            type: "Item_Purchase",
+                            isRead: false
                         }
+
+                        var addNotificaationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                            
+                            var messagingToken = buyerUserdocumentSnapshot.data().cloudMessagingId
+                        
+                            if(messagingToken !== "" && title!==""&& body!==""){
+                                // Notification details.
+                                const payload = {
+                                    notification: {
+                                    title: title,
+                                    body: body
+                                    }
+                                };
+        
+                                admin.messaging().sendToDevice(messagingToken,payload)
+
+                                return true
+                            }else{
+                                return false
+                            }
+                        }).catch((error)=>{
+                            console.log('Error updating the document:', error);
+                            return false
+                        })
+
+                        return addNotificaationToDatabase
                     }else{
-                        return null
+                        return false
                     }
-    
                 });
             
             return getBuyerUser
+        }else{
+            return false
         }
 })
 
