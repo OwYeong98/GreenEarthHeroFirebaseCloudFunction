@@ -39,7 +39,7 @@ exports.sendRecycleRequestAcceptedOrCancelledNotification = functions.firestore
                                     var address = change.after.data().address
 
                                     var newNotificationDoc = {
-                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
                                         userId: requesterUserId,
                                         title: acceptingUserName+' has accepted your recycle request',
                                         relatedID: recycleRequestId,
@@ -107,7 +107,7 @@ exports.sendRecycleRequestAcceptedOrCancelledNotification = functions.firestore
                                     var address = change.after.data().address
 
                                     var newNotificationDoc = {
-                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
                                         userId: requesterUserId,
                                         title: acceptingUserName+' has cancelled volunteer to collect your recycle request',
                                         relatedID: recycleRequestId,
@@ -187,7 +187,7 @@ exports.sendNotificationWhenRecycleRequestCollectionIsDone = functions.firestore
                                 var address = newDoc.address
 
                                 var newNotificationDoc = {
-                                    date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                    date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
                                     userId: requesterUserId,
                                     title: acceptingUserName+' has completed collecting your recycle request',
                                     relatedID: context.params.id,
@@ -283,7 +283,7 @@ exports.sendNotificationWhenNewChatMessagesIsFound = functions.firestore
                                                 var messagingToken = receiverUserdocumentSnapshot.data().cloudMessagingId
 
                                                 var newNotificationDoc = {
-                                                    date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                                    date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
                                                     userId: userIdOfUserThatNeedToBeNotify,
                                                     title: senderName+' just sent you a message!',
                                                     relatedID: context.params.chatRoomId,
@@ -366,7 +366,7 @@ exports.sendNotificationWhenItemIsBoughtBySomeone = functions.firestore
 
                                 if(sellerUserdocumentSnapshot.exists){
                                     var newNotificationDoc = {
-                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
                                         userId: sellerUserId,
                                         title: `Your Item ${itemName} have been bought by ${buyerUserName}`,
                                         relatedID: itemId,
@@ -449,7 +449,7 @@ exports.sendNotificationWhenDeliveryDetailIsUpdated = functions.firestore
                 buyerUserdocumentSnapshot=>{
                     if(buyerUserdocumentSnapshot.exists){
                         var newNotificationDoc = {
-                            date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY/MM/DD HH:mm:ss"),
+                            date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
                             userId: buyerUserId,
                             title: title,
                             relatedID: itemId,
