@@ -161,6 +161,96 @@ exports.sendRecycleRequestAcceptedOrCancelledNotification = functions.firestore
         }
 })
 
+exports.sendLocationSharedByVolunteerNotification = functions.firestore
+    .document('Recycle_Request/{requestId}')
+    .onUpdate((change,context) => {
+
+
+        var recycleRequestId = context.params.requestId
+        var requesterUserId = change.after.data().userId
+        
+        //when someone accepted to collect the recycle request
+        if(change.before.data().isLocationShared !== change.after.data().isLocationShared){
+            var acceptorUserId = change.after.data().accepted_collect_by
+            //get user detail
+            var getUser = admin.firestore().collection("Users").doc(requesterUserId).get().then(
+                requestUserdocumentSnapshot=>{
+                    if(requestUserdocumentSnapshot.exists){
+
+                        //get accepting user detail
+                        var getAcceptingUser = admin.firestore().collection("Users").doc(acceptorUserId).get().then(
+                            acceptingUserdocumentSnapshot=>{
+
+                                if(acceptingUserdocumentSnapshot.exists){
+                                    var messagingToken = requestUserdocumentSnapshot.data().cloudMessagingId
+                                    var acceptingUserName = acceptingUserdocumentSnapshot.data().lastName + " "+ acceptingUserdocumentSnapshot.data().firstName
+                                    var address = change.after.data().address
+
+                                    var notifTitle = ""
+                                    var message = ""
+
+                                    if(change.after.data().isLocationShared === true){
+                                        notifTitle = acceptingUserName+" shared location to you!"
+                                        message = acceptingUserName+" has shared his/her location to you for recycle request at "+address
+                                    }else{
+                                        notifTitle = acceptingUserName+" stop sharing location to you!"
+                                        message = acceptingUserName+" stop sharing his/her location to you for recycle request at "+address
+                                    }
+
+                                    var newNotificationDoc = {
+                                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
+                                        userId: requesterUserId,
+                                        title: message,
+                                        relatedID: recycleRequestId,
+                                        type: "Recycle_Request",
+                                        isRead: false
+                                    }
+    
+                                    var addNotificationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                                        
+                                        if(messagingToken !== ""){
+                                            const payload = {
+                                                notification: {
+                                                title: notifTitle,
+                                                body: message
+                                                }
+                                            };
+    
+                                            admin.messaging().sendToDevice(messagingToken,payload)
+        
+                                            return true
+                                        }else{
+                                            return false
+                                        }
+                                    }).catch((error)=>{
+                                        console.log('Error updating the document:', error);
+                                        return false
+                                    })
+
+                                    return addNotificationToDatabase
+                                }else{
+                                    return false
+                                }
+
+                            });
+                        
+                        return getAcceptingUser
+                        
+                    }else{
+                        return false
+                    }
+                }
+            ).catch(err=>{
+                console.log("Error getting Doc",err)
+                return false
+            })
+
+            return getUser
+        }else{
+            return false
+        }
+})
+
 
 exports.sendNotificationWhenRecycleRequestCollectionIsDone = functions.firestore
     .document('Recycle_Request_History/{id}')
