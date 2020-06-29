@@ -583,6 +583,66 @@ exports.sendNotificationWhenDeliveryDetailIsUpdated = functions.firestore
         }
 })
 
+exports.sendNotificationWhenItemReceivedByBuyer = functions.firestore
+    .document('Second_Hand_Item_History/{itemId}')
+    .onCreate((snap, context) => {
+
+        // When there are Item history added to firestore db
+        const newDoc = snap.data()
+
+        var itemId = context.params.itemId
+        var sellerUserId = newDoc.user_posted.userId
+ 
+
+        var itemName = newDoc.itemName
+        var title = "Your Item '"+ itemName +"' transaction has been done"
+        var body = "The buyer has successfully received your Item, the payment will be transfer to your bank account in a few day."
+        
+        var getSellerUser = admin.firestore().collection("Users").doc(sellerUserId).get().then(
+            sellerUserdocumentSnapshot=>{
+                if(sellerUserdocumentSnapshot.exists){
+                    var newNotificationDoc = {
+                        date: moment(moment.now()).tz("Asia/Kuala_Lumpur").format("YYYY-MM-DD HH:mm:ss"),
+                        userId: sellerUserId,
+                        title: title,
+                        relatedID: itemId,
+                        type: "Item_History",
+                        isRead: false
+                    }
+
+                    var addNotificaationToDatabase = admin.firestore().collection('Notification').add(newNotificationDoc).then(()=>{
+                        
+                        var messagingToken = sellerUserdocumentSnapshot.data().cloudMessagingId
+                    
+                        if(messagingToken !== "" && title!==""&& body!==""){
+                            // Notification details.
+                            const payload = {
+                                notification: {
+                                title: title,
+                                body: body
+                                }
+                            };
+    
+                            admin.messaging().sendToDevice(messagingToken,payload)
+
+                            return true
+                        }else{
+                            return false
+                        }
+                    }).catch((error)=>{
+                        console.log('Error updating the document:', error);
+                        return false
+                    })
+
+                    return addNotificaationToDatabase
+                }else{
+                    return false
+                }
+            });
+        
+        return getSellerUser
+})
+
 exports.updateTotalFoodAmountWhenQuantityChange = functions.firestore
     .document('Food_Donation/{foodDonationId}/Food_List/{foodId}')
     .onUpdate((change,context) => {
